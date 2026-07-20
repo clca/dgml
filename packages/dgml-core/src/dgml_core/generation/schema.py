@@ -25,6 +25,7 @@ import json
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 # Tag names become XML element names downstream (`el.tag = name`), so they must
 # be valid XML Names. The planner LLM occasionally emits names with spaces or
@@ -73,7 +74,15 @@ class Schema:
 
     @classmethod
     def load(cls, path: Path | str) -> Schema:
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        return cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Schema:
+        """Build a Schema from a v1-format dict (the ``schema.json`` shape).
+
+        Also used for the dict reconstructed from ``full-schema.rnc`` by
+        ``rnc.rnc_to_schema_dict``.
+        """
         schema = cls(notes=data.get("notes", ""))
         # Strict by design: an unknown key (stale field, typo) raises instead of
         # being silently dropped — a caller must never think a field was set
@@ -85,10 +94,18 @@ class Schema:
     def save(self, path: Path | str) -> None:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
+
+        def _tag_dict(tag: SchemaTag) -> dict[str, Any]:
+            # `example` is redundant with `examples[0]` (add() keeps them in
+            # sync), so the saved JSON carries only the list.
+            d = asdict(tag)
+            d.pop("example", None)
+            return d
+
         p.write_text(
             json.dumps(
                 {
-                    "tags": {name: asdict(tag) for name, tag in self.tags.items()},
+                    "tags": {name: _tag_dict(tag) for name, tag in self.tags.items()},
                     "notes": self.notes,
                 },
                 indent=2,
@@ -101,6 +118,11 @@ class Schema:
         tag.name = sanitize_tag_name(tag.name)
         if tag.kind not in VALID_KINDS:
             tag.kind = "inline"
+        # The single-value convenience mirrors examples[0] for in-memory
+        # consumers (extraction prompts, RNC rendering); the saved JSON only
+        # carries `examples`, so reloads re-derive it here.
+        if not tag.example and tag.examples:
+            tag.example = tag.examples[0]
         self.tags[tag.name] = tag
 
     def names(self) -> set[str]:
