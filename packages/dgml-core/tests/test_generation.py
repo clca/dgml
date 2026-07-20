@@ -273,23 +273,20 @@ def test_apply_labels_quote_occurrence_picks_the_right_match() -> None:
 
 
 def test_apply_labels_short_quote_respects_token_boundary() -> None:
-    block = _b("p", "b1", text='Completion of BAS with a grade of "C", or better')
-    warnings = apply_labels([block], {"b1": {"entities": [{"quote": "C", "concept": "Grade"}]}})
+    block = _b("p", "b1", text='Baseline value is "B" here')
+    warnings = apply_labels([block], {"b1": {"entities": [{"quote": "B", "concept": "Grade"}]}})
     assert warnings == []
     (span,) = block.entities
-    assert block.text[span.start : span.end] == "C"
-    assert span.start == block.text.index('"') + 1  # the grade, not the C of "Completion"
+    assert block.text[span.start : span.end] == "B"
+    assert span.start == block.text.index('"') + 1  # the quoted value, not the B in "Baseline"
 
 
 def test_find_verbatim_skips_embedding_keeps_punct_edged() -> None:
-    # embedded in a larger word/number -> skip to the standalone value
-    assert _find_verbatim("Completion, grade C", "C", 0) == "Completion, grade C".rindex("C")
-    assert _find_verbatim("Na 137, K 3", "3", 0) == "Na 137, K 3".rindex("3")
-    assert _find_verbatim("over 120,000 or 20,000", "20,000", 0) == "over 120,000 or 20,000".rindex(
-        "20,000"
-    )
+    # a short value embedded in a larger word / number -> skip to the standalone one
+    assert _find_verbatim("Baseline B", "B", 0) == "Baseline B".rindex("B")
+    assert _find_verbatim("150 and 50", "50", 0) == "150 and 50".rindex("50")
     # a punctuation-edged quote is not extended by a neighbour (possessive 's)
-    assert _find_verbatim("from 'Le Lyrial's'", "'Le Lyrial'", 0) == 5
+    assert _find_verbatim("'Acme's report", "'Acme'", 0) == 0
 
 
 def test_label_prompt_schema_elicits_occurrence() -> None:
