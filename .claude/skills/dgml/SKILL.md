@@ -467,7 +467,10 @@ The workflow is generate-schema → extract → get-values:
 
 ```bash
 # 1) Propose a schema from sample PDFs (stored as extraction-schema.rnc). --from-file is
-#    repeatable; omit it to sample every file in the docset.
+#    repeatable; omit it to sample every file in the docset. The model picks an
+#    XSD datatype per leaf, so the generated RNC has typed leaves natively
+#    (xsd:date, xsd:decimal, xsd:integer, …) — dates/amounts/counts come back as
+#    typed dg:value at extraction, not bare text.
 uv run dgml extraction generate-schema "$ds" --from-file "$fid"
 
 #    …or set one yourself. set-schema accepts RNC *or* a grounded-field JSON

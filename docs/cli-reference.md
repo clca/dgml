@@ -662,6 +662,13 @@ more sample PDFs, then store it as `extraction-schema.rnc`. `--from-file` is rep
 defaults to every file in the DocSet. Errors `NO_FILES` if the DocSet is empty
 and no `--from-file` is given.
 
+The model submits a **typed field tree** — each leaf carries the XSD datatype it
+chose (`date`, `decimal`, `integer`, `boolean`, `gYear`, …, or `text`) — which
+is rendered straight to the at-rest RNC (leaves emit `xsd:date`, `xsd:decimal`,
+etc.). There is no grounded-field JSON Schema intermediate; datatypes are native
+to the generated schema, and downstream extraction normalizes each typed value
+to a `dg:value`/`xsi:type`. The output shape is unchanged.
+
 ```json
 {
   "docset_id": "o8vr8rs488vg",
