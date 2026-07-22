@@ -1580,7 +1580,7 @@ def _extraction_cmd(args: argparse.Namespace, ws: Workspace, fmt: str) -> int:
     """Dispatch the `extraction` command group."""
     from dataclasses import replace
 
-    from dgml_core.extraction_schema import json_schema_to_rnc, parse_rnc, rnc_to_json_schema
+    from dgml_core.extraction_schema import parse_rnc, rnc_to_json_schema
     from dgml_core.extraction_xml import dgml_xml_to_values
     from dgml_core.grounded import extract_values, generate_schema, load_grounded_config
 
@@ -1599,8 +1599,7 @@ def _extraction_cmd(args: argparse.Namespace, ws: Workspace, fmt: str) -> int:
                 f"docset '{args.docset_id}' has no files; pass --from-file or add files first",
                 fmt,
             )
-        schema = generate_schema(ws, file_ids, config=config)
-        rnc = json_schema_to_rnc(schema, workspace=ws.organization, docset_name=ds.name)
+        rnc = generate_schema(ws, file_ids, config=config, docset_name=ds.name)
         store.set_schema(args.docset_id, rnc)
         _emit(
             {

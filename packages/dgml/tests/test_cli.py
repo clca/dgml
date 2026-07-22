@@ -3360,6 +3360,14 @@ _JSON_SCHEMA = {
     },
 }
 
+# The typed field tree the schema-generation LLM now submits (rendered straight
+# to RNC by generate_schema — no JSON Schema hop).
+_FIELD_TREE = [
+    {"name": "vendor_name", "kind": "field", "datatype": "text"},
+    {"name": "liability_cap", "kind": "field", "datatype": "decimal"},
+    {"name": "effective_date", "kind": "field", "datatype": "date"},
+]
+
 _RNC_SCHEMA = """\
 namespace dg = "http://dgml.io/ns/dg#"
 namespace docset = "http://www.dgml.io/ws/Contracts"
@@ -3535,8 +3543,9 @@ def test_extraction_generate_schema_no_files(
 def test_extraction_generate_schema_happy_path(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """generate-schema converts the LLM's JSON Schema to RNC and stores it.
-    The sample PDF is placed directly (no ghostscript needed for schema-gen)."""
+    """generate-schema renders the LLM's typed field tree straight to RNC and
+    stores it — datatypes preserved, no JSON Schema hop. The sample PDF is placed
+    directly (no ghostscript needed for schema-gen)."""
     ws = tmp_path / "ws"
     _init_ws(ws)
     capsys.readouterr()
@@ -3549,13 +3558,16 @@ def test_extraction_generate_schema_happy_path(
     file_dir.mkdir(parents=True, exist_ok=True)
     _write_blank_pdf(file_dir / "doc.pdf", 1)
 
-    response = _tool_response("submit_schema", {"schema": _JSON_SCHEMA})
+    response = _tool_response("submit_schema", {"fields": _FIELD_TREE})
     with patch("litellm.completion", return_value=response):
         rc = main(_ws_args(ws) + ["extraction", "generate-schema", ds_id, "--from-file", fid])
     assert rc == 0
     payload = _read_stdout(capsys)
     assert payload["schema_format"] == "rnc"
     assert "element docset:VendorName" in payload["schema"]
+    # Datatypes chosen by the model are carried into the RNC leaves.
+    assert "element docset:LiabilityCap {\n    xsd:decimal" in payload["schema"]
+    assert "element docset:EffectiveDate {\n    xsd:date" in payload["schema"]
     assert payload["from_file_ids"] == [fid]
     assert (
         Workspace(root=ws).docset_schema_path(ds_id).read_text(encoding="utf-8")
